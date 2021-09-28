@@ -112,6 +112,9 @@ def plot_individual_series(Y, title=""):
 
 def get_stationary_series(Y, X):
     """ Try both ways """
+    common_datelist = get_common_dates(Y,X)
+    Y = Y[Y.index.isin(common_datelist)]
+    X = X[X.index.isin(common_datelist)]
     Beta_x = np.cov(Y, X)[0][1] / np.var(X)
     residual_x = Y - Beta_x * X
     # Perform ADF
@@ -346,7 +349,7 @@ def get_data(base_path, filename):
 # host = fig.add_subplot(111)
 
 # More versatile wrapper
-def plot_triple_curves(S1,S2, S3,xlabel, ylabel, zlabel, S1_label, S2_label, S3_label)
+def plot_triple_curves(S1,S2, S3,xlabel, ylabel, zlabel, S1_label, S2_label, S3_label):
     fig, host = plt.subplots(figsize=(18,5)) # (width, height) in inches
 
     par1 = host.twinx()
@@ -367,3 +370,20 @@ def plot_triple_curves(S1,S2, S3,xlabel, ylabel, zlabel, S1_label, S2_label, S3_
 
     lns = [p1, p2, p3]
     host.legend(handles=lns, loc='best')
+
+
+def generate_coint_performance_df(df, pairs_list, start_date, end_date, window):
+    df_list = []
+    rejected_pairs = []
+    for pair in pairs_list:
+        try:
+            X1,Y1 = pair[0], pair[1]
+            X = extract_time_series(df,X1,"5. adjusted close",start_date=start_date,end_date=end_date)
+            Y = extract_time_series(df,Y1,"5. adjusted close", start_date=start_date,end_date=end_date)
+            temp_df = check_cointegration_consistency(X,Y, start_date=start_date,end_date=end_date,
+                                        window=window, criteria="constant", threshold = 0.05)
+            temp_df["pair"] = X1 + "~" + Y1
+            df_list.append(temp_df)
+        except:
+            rejected_pairs.append(pair)
+    return pd.concat(df_list), rejected_pairs
