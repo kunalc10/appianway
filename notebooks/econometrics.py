@@ -264,6 +264,7 @@ def plot_twin_axis(Y,X, y1_label, y2_label, title=""):
     # make a plot with different y-axis using second axis object
     ax2.plot(X.index, X.values,color="blue",marker="o")
     ax2.set_ylabel(y2_label,color="blue",fontsize=14)
+    plt.title()
     plt.show()
 
 
@@ -295,7 +296,7 @@ def impulse_response_func(ar_coef, nlags=20, include_const=True, ax=None):
 
 def check_cointegration_consistency(X,Y, start_date, end_date, window, criteria, threshold):
     """ Roll over a pair of series and check for consistency"""
-    common_datelist = econometrics.get_common_dates(Y,X)
+    common_datelist = get_common_dates(Y,X)
     common_datelist = sorted(common_datelist)
     closest_start_date = find_closest_date(start_date, common_datelist)
     closest_end_date = find_closest_date(end_date, common_datelist)
@@ -311,7 +312,7 @@ def check_cointegration_consistency(X,Y, start_date, end_date, window, criteria,
     for index in range(start_index, end_index):
         X_temp = X[X.index.isin(common_datelist[index:index+window])]
         Y_temp = Y[Y.index.isin(common_datelist[index:index+window])]
-        cointegration_result = econometrics.check_cointegration(Y_temp, X_temp)
+        cointegration_result = check_cointegration(Y_temp, X_temp)
         if cointegration_result[criteria] < threshold:
             clearing_list.append(1)
         else:
@@ -338,3 +339,31 @@ def find_closest_date(date, datelist):
 
 def get_data(base_path, filename):
     return os.path.join(base_path, filename)
+
+
+# Create figure and subplot manually
+# fig = plt.figure()
+# host = fig.add_subplot(111)
+
+# More versatile wrapper
+def plot_triple_curves(S1,S2, S3,xlabel, ylabel, zlabel, S1_label, S2_label, S3_label)
+    fig, host = plt.subplots(figsize=(18,5)) # (width, height) in inches
+
+    par1 = host.twinx()
+    par2 = host.twinx()
+
+    host.set_xlabel(xlabel)
+    host.set_ylabel(S1_label)
+    par1.set_ylabel(S2_label)
+    par2.set_ylabel(S3_label)
+
+    color1 = plt.cm.viridis(0)
+    color2 = plt.cm.viridis(0.5)
+    color3 = plt.cm.viridis(.9)
+
+    p1, = host.plot(S3.index, S3.values, color=color1, label=S3_label)
+    p2, = par1.plot(S1.index, S2.values, color=color2, label=S1_label)
+    p3, = par2.plot(S2.index, S2.values, color=color3, label=S2_label)
+
+    lns = [p1, p2, p3]
+    host.legend(handles=lns, loc='best')
