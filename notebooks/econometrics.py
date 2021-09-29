@@ -141,7 +141,8 @@ def plot_common_series(Y, X, title):
     plt.title(title)
     plt.xticks(rotation="45")
 
-def generate_mad_signals(tseries, threshold = 2, window=60):
+
+def generate_mad_signals(tseries, entry_threshold = 2, exit_threshold = 1, window=60):
     mad = lambda x: np.abs(x - x.median()).median()
     mad_series = tseries.rolling(window).apply(mad)
     mad_series = mad_series.dropna()
@@ -159,16 +160,16 @@ def generate_mad_signals(tseries, threshold = 2, window=60):
     trade_enter_up = False
     trade_enter_down = False
     for i in range(tseries.shape[0]):
-        if tseries.iloc[i] > threshold*mad_series.iloc[i] and trade_enter_up == False:
+        if tseries.iloc[i] > entry_threshold*mad_series.iloc[i] + median_series.iloc[i] and trade_enter_up == False:
             value = -1
             trade_enter_up = True
-        elif tseries.iloc[i] < -threshold*mad_series.iloc[i] and trade_enter_down == False:
+        elif tseries.iloc[i] < -entry_threshold*mad_series.iloc[i] + median_series.iloc[i] and trade_enter_down == False:
             value = 1
             trade_enter_down = True
-        elif trade_enter_down == True and tseries.iloc[i] > median_series[i]:
+        elif trade_enter_down == True and tseries.iloc[i] > -exit_threshold*mad_series.iloc[i] + median_series[i]:
             value = 0
             trade_enter_down = False
-        elif trade_enter_up == True and tseries.iloc[i] < median_series[i]:
+        elif trade_enter_up == True and tseries.iloc[i] < exit_threshold*mad_series.iloc[i] + median_series[i]:
             value = 0
             trade_enter_up = False
 
@@ -177,7 +178,8 @@ def generate_mad_signals(tseries, threshold = 2, window=60):
 
     return top_strategy, bottom_strategy, datelist
 
-def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X"):
+#TODO: Enhance the function to incorporate lag. If there is a change in sign then liquidate
+def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X", lag = 1):
     Y = Y[Y.index.isin(datelist)]
     X = X[X.index.isin(datelist)]
     top_profit = 0
@@ -187,15 +189,17 @@ def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_
 
 
     switch = False
+    sp_prev = 0
     for sp in range(1,len(Y)):
-        if top_strategy[sp] != 0:
-            if switch == False:
-                fp = sp
-                switch = True
+        if top_strategy[sp_prev] != top_strategy[sp]:
+            if top_strategy[sp] != 0:
+                if switch == False:
+                    fp = sp
+                    switch = True
+                else:
+                    top_profit+=(Y.iloc[sp] - Y.iloc[fp])*top_strategy[sp]
             else:
-                top_profit+=Y.iloc[sp] - Y.iloc[fp]
-        else:
-            switch = False
+                switch = False
 
     top_profit+=Y.iloc[sp] - Y.iloc[fp]
 
@@ -205,7 +209,7 @@ def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_
                 fp = sp
                 switch = True
             else:
-                bottom_profit+=X.iloc[sp] - X.iloc[fp]
+                bottom_profit+=(X.iloc[sp] - X.iloc[fp])*bottom_strategy[sp]
         else:
             switch = False
 
@@ -267,7 +271,7 @@ def plot_twin_axis(Y,X, y1_label, y2_label, title=""):
     # make a plot with different y-axis using second axis object
     ax2.plot(X.index, X.values,color="blue",marker="o")
     ax2.set_ylabel(y2_label,color="blue",fontsize=14)
-    plt.title()
+    plt.title(title)
     plt.show()
 
 
