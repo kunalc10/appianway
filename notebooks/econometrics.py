@@ -93,7 +93,7 @@ def filter_cointegrated_pairs(co_dict, criteria, p_value):
 def get_common_dates(Y, X):
     datelist1 = set(X.index)
     datelist2 = set(Y.index)
-    common_datelist = list(datelist1.intersection(datelist2))
+    common_datelist = sorted(list(datelist1.intersection(datelist2)))
     return common_datelist
 
 
