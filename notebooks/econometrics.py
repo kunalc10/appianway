@@ -372,7 +372,7 @@ def plot_triple_curves(S1,S2, S3,xlabel, ylabel, zlabel, S1_label, S2_label, S3_
     host.legend(handles=lns, loc='best')
 
 
-def generate_coint_performance_df(df, pairs_list, start_date, end_date, window):
+def generate_coint_performance_df(df, pairs_list, start_date, end_date, threshold=0.05):
     df_list = []
     rejected_pairs = []
     for pair in pairs_list:
@@ -381,7 +381,7 @@ def generate_coint_performance_df(df, pairs_list, start_date, end_date, window):
             X = extract_time_series(df,X1,"5. adjusted close",start_date=start_date,end_date=end_date)
             Y = extract_time_series(df,Y1,"5. adjusted close", start_date=start_date,end_date=end_date)
             temp_df = check_cointegration_consistency(X,Y, start_date=start_date,end_date=end_date,
-                                        window=window, criteria="constant", threshold = 0.05)
+                                        window=260, criteria="constant", threshold = threshold)
             temp_df["pair"] = X1 + "~" + Y1
             df_list.append(temp_df)
         except:
