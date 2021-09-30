@@ -8,6 +8,7 @@ from statsmodels.tsa.stattools import coint, adfuller
 import datetime
 from itertools import combinations
 import os
+from pmdarima.arima import auto_arima
 
 def stationarity_test(X, cutoff=0.01):
     # H_0 in adfuller is unit root exists (non-stationary)
@@ -126,20 +127,21 @@ def get_stationary_series(Y, X):
     pvalue_y = adfuller(residual_y)[1]
     if pvalue_x < pvalue_y:
         print("Co-integration series = X")
-        return residual_x
+        return residual_x, "X"
     else:
         print("Co-integration series = Y")
-        return residual_y
+        return residual_y,"Y"
 
 
-def plot_common_series(Y, X, title):
+def plot_common_series(Y, X, title, xlabel, ylabel):
     common_dates = get_common_dates(Y, X)
     Y = Y[Y.index.isin(common_dates)]
     X = X[X.index.isin(common_dates)]
-    Y.plot()
-    X.plot()
+    Y.plot(label=xlabel)
+    X.plot(label=ylabel)
     plt.title(title)
     plt.xticks(rotation="45")
+    plt.legend()
 
 
 def generate_mad_signals(tseries, entry_threshold = 2, exit_threshold = 1, window=60):
@@ -179,7 +181,8 @@ def generate_mad_signals(tseries, entry_threshold = 2, exit_threshold = 1, windo
     return top_strategy, bottom_strategy, datelist
 
 #TODO: Enhance the function to incorporate lag. If there is a change in sign then liquidate
-def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X", lag = 1):
+def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X", historical_beta = {}):
+    print("Hello world")
     Y = Y[Y.index.isin(datelist)]
     X = X[X.index.isin(datelist)]
     top_profit = 0
@@ -190,6 +193,8 @@ def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_
 
     switch = False
     sp_prev = 0
+    fp = 0
+    print(fp)
     for sp in range(1,len(Y)):
         if top_strategy[sp_prev] != top_strategy[sp]:
             if top_strategy[sp] != 0:
@@ -215,17 +220,22 @@ def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_
 
     bottom_profit+=X.iloc[sp] - X.iloc[fp]
 
-    if cointegrating_series == "X":
-        bottom_profit = bottom_profit*abs(np.cov(Y,X)[0][1]/np.var(X))
+    if len(historical_beta) == 0:
+        if cointegrating_series == "X":
+            bottom_profit = bottom_profit*abs(np.cov(Y,X)[0][1]/np.var(X))
+        else:
+            top_profit = top_profit*abs(np.cov(Y,X)[0][1]/np.var(Y))
     else:
-        top_profit = top_profit*abs(np.cov(Y,X)[0][1]/np.var(Y))
+        if cointegrating_series == "X":
+            bottom_profit = bottom_profit*abs(historical_beta["X"])
+        else:
+            top_profit = top_profit*abs(historical_beta["Y"])
 
 
-    total_profit = top_profit + bottom_profit
 
     return top_profit, bottom_profit
 
-## Create rolling predictions for 2021.
+## Create rolling predictions
 def AR1_forecasting(X, size):
     train, test = X[:-size], X[-size:]
     history = [x for x in train]
@@ -239,18 +249,34 @@ def AR1_forecasting(X, size):
         predictions.append(yhat)
     return predictions
 
+def auto_arima_forecasting(X, size):
+    train, test = X[:-size], X[-size:]
+    history = [x for x in train]
+    arima_model = auto_arima(history[:-1], start_p=0, d=0,
+                             start_q=0, max_p=5, max_d=1, max_q=5, start_P=0, D=1,
+                             srart_Q=0, max_P=5, max_D=1, max_Q=5, seasonal=True,
+                             error_action="warn", trace=True, suppress_warnings=True,
+                             stepwise=True, random_state=20, n_fits=20)
+    yhat = arima_model.predict(len(test))
+    predictions = list(yhat)
+    return predictions
+
 def add_time(date, days=1):
     return date + datetime.timedelta(days)
 
+forecast_method_mapper = {}
+forecast_method_mapper["AR1"] = AR1_forecasting
+forecast_method_mapper["auto_arima"] =auto_arima_forecasting
+#forecast_method_mapper["LSTM"] =
 
-def rolling_window_single_series_forecast(Series, window):
+def rolling_window_single_series_forecast(Series, window, method = "AR1"):
     """Currently 1 period testing"""
     total_datelist = Series.index.tolist()
     testing_datelist = total_datelist[window:]
     predictions = []
     for i in range(0, len(total_datelist) - window + 1):
         train = Series.iloc[i:window + i + 1]
-        prediction = AR1_forecasting(train, size=1)
+        prediction = forecast_method_mapper[method](train, size=1)
         predictions.append(prediction[0])
     return pd.Series(predictions[:-1], index=testing_datelist)
 
