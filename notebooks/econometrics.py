@@ -181,14 +181,28 @@ def generate_mad_signals(tseries, entry_threshold = 2, exit_threshold = 1, windo
     return top_strategy, bottom_strategy, datelist
 
 #TODO: Enhance the function to incorporate lag. If there is a change in sign then liquidate
-def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X", historical_beta = {}):
+def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X", historical_beta = {},
+                    stop_loss = -10):
     Y = Y[Y.index.isin(datelist)]
     X = X[X.index.isin(datelist)]
     top_profit = 0
     bottom_profit = 0
+    total_profit = 0
     top_strategy = pd.Series(top_strategy, index = datelist)
     bottom_strategy = pd.Series(bottom_strategy, index = datelist)
+    x_multiplier, y_multiplier = 1,1
+    stop_loss_reached = False
 
+    if len(historical_beta) == 0:
+        if cointegrating_series == "X":
+            x_multiplier = abs(np.cov(Y,X)[0][1]/np.var(X))
+        else:
+            y_multiplier = abs(np.cov(Y,X)[0][1]/np.var(Y))
+    else:
+        if cointegrating_series == "X":
+            x_multiplier = abs(historical_beta["X"])
+        else:
+            y_multiplier = abs(historical_beta["Y"])
 
     switch = False
     sp_prev = 0
@@ -201,34 +215,39 @@ def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_
                     fp = sp
                     switch = True
                 else:
-                    top_profit+=(Y.iloc[sp] - Y.iloc[fp])*top_strategy[sp]
+                    top_profit+=(Y.iloc[sp] - Y.iloc[fp])*top_strategy[sp] * y_multiplier
+                    bottom_profit += (X.iloc[sp] - X.iloc[fp]) * bottom_strategy[sp] * x_multiplier
+
+            # Simple Condition - will remove later
             else:
                 switch = False
+            if top_profit + bottom_profit < stop_loss:
+                break
 
     top_profit+=Y.iloc[sp] - Y.iloc[fp]
 
-    for sp in range(1,len(X)):
-        if bottom_strategy[sp] != 0:
-            if switch == False:
-                fp = sp
-                switch = True
-            else:
-                bottom_profit+=(X.iloc[sp] - X.iloc[fp])*bottom_strategy[sp]
-        else:
-            switch = False
+    # for sp in range(1,len(X)):
+    #     if bottom_strategy[sp] != 0:
+    #         if switch == False:
+    #             fp = sp
+    #             switch = True
+    #         else:
+    #             bottom_profit+=(X.iloc[sp] - X.iloc[fp])*bottom_strategy[sp]
+    #     else:
+    #         switch = False
 
     bottom_profit+=X.iloc[sp] - X.iloc[fp]
 
-    if len(historical_beta) == 0:
-        if cointegrating_series == "X":
-            bottom_profit = bottom_profit*abs(np.cov(Y,X)[0][1]/np.var(X))
-        else:
-            top_profit = top_profit*abs(np.cov(Y,X)[0][1]/np.var(Y))
-    else:
-        if cointegrating_series == "X":
-            bottom_profit = bottom_profit*abs(historical_beta["X"])
-        else:
-            top_profit = top_profit*abs(historical_beta["Y"])
+    # if len(historical_beta) == 0:
+    #     if cointegrating_series == "X":
+    #         bottom_profit = bottom_profit*abs(np.cov(Y,X)[0][1]/np.var(X))
+    #     else:
+    #         top_profit = top_profit*abs(np.cov(Y,X)[0][1]/np.var(Y))
+    # else:
+    #     if cointegrating_series == "X":
+    #         bottom_profit = bottom_profit*abs(historical_beta["X"])
+    #     else:
+    #         top_profit = top_profit*abs(historical_beta["Y"])
 
 
 
