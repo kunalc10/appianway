@@ -182,7 +182,6 @@ def generate_mad_signals(tseries, entry_threshold = 2, exit_threshold = 1, windo
 
 #TODO: Enhance the function to incorporate lag. If there is a change in sign then liquidate
 def compute_profits(Y,X, top_strategy, bottom_strategy, datelist, cointegrating_series = "X", historical_beta = {}):
-    print("Hello world")
     Y = Y[Y.index.isin(datelist)]
     X = X[X.index.isin(datelist)]
     top_profit = 0
