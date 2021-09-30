@@ -353,28 +353,37 @@ def get_data(base_path, filename):
 # host = fig.add_subplot(111)
 
 # More versatile wrapper
-def plot_triple_curves(S1,S2, S3,xlabel, ylabel, zlabel, S1_label, S2_label, S3_label):
-    fig, host = plt.subplots(figsize=(18,5)) # (width, height) in inches
+# Create figure and subplot manually
+# fig = plt.figure()
+# host = fig.add_subplot(111)
+
+# More versatile wrapper
+def plot_triple_curves(S1, S2, S3, xaxis, xlabel, ylabel, zlabel, S1_label, S2_label, S3_label):
+    fig, host = plt.subplots(figsize=(18, 5))  # (width, height) in inches
+
+    common_datelist = get_common_dates(S2, S3)
+    S1 = S1[S1.index.isin(common_datelist)]
+    S2 = S2[S2.index.isin(common_datelist)]
+    S3 = S3[S3.index.isin(common_datelist)]
 
     par1 = host.twinx()
     par2 = host.twinx()
 
-    host.set_xlabel(xlabel)
-    host.set_ylabel(S1_label)
-    par1.set_ylabel(S2_label)
-    par2.set_ylabel(S3_label)
+    host.set_xlabel(xaxis)
+    host.set_ylabel(xlabel)
+    par1.set_ylabel(ylabel)
+    par2.set_ylabel(zlabel)
 
     color1 = plt.cm.viridis(0)
     color2 = plt.cm.viridis(0.5)
     color3 = plt.cm.viridis(.9)
 
     p1, = host.plot(S3.index, S3.values, color=color1, label=S3_label)
-    p2, = par1.plot(S1.index, S2.values, color=color2, label=S1_label)
+    p2, = par1.plot(S1.index, S1.values, color=color2, label=S1_label)
     p3, = par2.plot(S2.index, S2.values, color=color3, label=S2_label)
 
     lns = [p1, p2, p3]
     host.legend(handles=lns, loc='best')
-
 
 def generate_coint_performance_df(df, pairs_list, start_date, end_date, threshold=0.05):
     df_list = []
